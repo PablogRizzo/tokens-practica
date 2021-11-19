@@ -1,7 +1,14 @@
-import cors from "cors";
-import MethodOverride  from 'method-override';
-import express from "express";
-import path from "path";
+// import cors from "cors";
+// import MethodOverride  from 'method-override';
+// import express from "express";
+// import path from "path";
+const methodOverride = require("method-override");
+const cors = require("cors");
+const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const {v4:uuid} = require("uuid");
+const dayjs = require("dayjs");
 //
 const server = express();
 const axios = require("axios");
@@ -10,6 +17,7 @@ const log = console.log;
 let PORT = process.env.PORT || 3000;
 
 server.use(cors());
+server.use(methodOverride());
 server.use(express.urlencoded({extended:true}))
 server.use(express.json());
 
@@ -51,15 +59,7 @@ server.get("/mail/:email",(req,res)=>{
     }
 });
 
-server.delete("/users/delete",(req,res)=>{
-    let mail = req.query.mail;
-    console.log(mail);
-    mail.forEach(para => {   
-        users = users.filter((elemento)=>elemento.email!=para) 
-    })
-    res.send("usuarios eliminados")
-})
-
+//---------------3--------------//
 server.get("/usersEmail/:email",(req,res)=>{
     let email= req.params.email;
     let arrayEmail=email.split(",");
@@ -76,7 +76,7 @@ server.get("/usersEmail/:email",(req,res)=>{
     res.send(response);
 })
 
-//obtengo usuarios por nombre mediante query
+//---------------4--------------//
 server.get("/users/name",(req,res)=>{
     let arrayNombre= req.query.nombre;
     let resul=[];
@@ -90,6 +90,7 @@ server.get("/users/name",(req,res)=>{
     res.send(resul)
 })
 
+//---------------5--------------//
 server.post("/user/create",(req,res) => {
     let nombre = req.body.nombre;
     let email = req.body.email;
@@ -101,6 +102,46 @@ server.post("/user/create",(req,res) => {
     res.send("Usuario creado!");
 });
 
+//---------------7--------------//
+server.delete("/users/delete",(req,res)=>{
+    let mail = req.query.mail;
+    console.log(mail);
+    mail.forEach(para => {   
+        users = users.filter((elemento)=>elemento.email!=para) 
+    })
+    res.send("usuarios eliminados")
+})
+
+//------------Ejercicio #2---------------//
+const multerConfig = multer.diskStorage({ 
+    destination:function(req,file,cb){    
+        cb(null, "./bucket"); 
+    },
+    filename:function(req,file,cb){
+        let idImage = uuid().split("-")[0];
+        let day = dayjs().format('DD-MM-YYYY');    
+    
+        cb(null, `${day}.${idImage}.${file.originalname}`);
+    },
+});
+
+const multerMiddle = multer({storage:multerConfig});
+
+
+server.post("/registro/usuario",multerMiddle.single("imagefile"),(req,res)=>{ 
+    let email = req.body.email;
+    let nombre = req.body.nombre;
+    let pass = req.body.pass;
+
+    let user = {"email":email, "name":nombre, "password":pass};
+    users.push(user);
+
+    if(req.file){
+        res.send("usuario creado!");
+    }else{
+        res.send("error al cargar la imagen../posiblemente no fue recibida");
+    }
+});
 
 server.listen(3000,()=>{
     log("start server");
