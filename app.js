@@ -11,7 +11,10 @@ const {v4:uuid} = require("uuid");
 const dayjs = require("dayjs");
 //
 const server = express();
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const axios = require("axios");
+const { appendFile } = require("fs");
 const log = console.log;
 
 let PORT = process.env.PORT || 3000;
@@ -26,9 +29,9 @@ const juan = axios.create({
 })
 
 let users = [
-    {email:"JuanJose@gmail.com", name:"Juan Jose", password:"555555555"},
-    {email:"JaneDoe@gmail.com", name:"Jane Doe", password:"123456789"},
-    {email:"NN@gmail.com", name:"Natalia Natalia", password:"123456789"}
+    {email:"JuanJose@gmail.com", name:"Juan", password:"555555555"},
+    {email:"JaneDoe@gmail.com", name:"Jane", password:"123456789"},
+    {email:"NN@gmail.com", name:"Natalia", password:"123456789"}
 ];
 
 server.get("/",(req,res)=>{
@@ -55,14 +58,16 @@ server.get("/mail/:email",(req,res)=>{
     for(let i=0;i<users.length;i++){
         if(mail == users[i].email){
             res.send(users[i]);
+        }else{
+            res.send("usuario no encontrado");
         }
     }
 });
 
 //---------------3--------------//
 server.get("/usersEmail/:email",(req,res)=>{
-    let email= req.params.email;
-    let arrayEmail=email.split(",");
+    let email = req.params.email;
+    let arrayEmail = email.split(",");
 
     let response=[];
 
@@ -78,16 +83,18 @@ server.get("/usersEmail/:email",(req,res)=>{
 
 //---------------4--------------//
 server.get("/users/name",(req,res)=>{
-    let arrayNombre= req.query.nombre;
+    let arrayNombre = req.query.nombre;
     let resul=[];
+
     arrayNombre.forEach((nombre)=>{
-        users.forEach((element)=>{
-            if(nombre== element.name){
-                resul.push(element)
+        users.forEach(element => {
+            if(nombre == element.name){
+                resul.push(element);
             }
         })
     })
-    res.send(resul)
+    
+    res.send(resul);
 })
 
 //---------------5--------------//
@@ -100,6 +107,14 @@ server.post("/user/create",(req,res) => {
     users.push(user);
 
     res.send("Usuario creado!");
+});
+
+//---------------6--------------//
+
+server.delete("/user/delete/:email",(req,res) => {
+    let mail = req.params.email;
+    let result = users.filter(element => element.email != mail);
+    res.send("usuario eliminado");
 });
 
 //---------------7--------------//
@@ -141,6 +156,86 @@ server.post("/registro/usuario",multerMiddle.single("imagefile"),(req,res)=>{
     }else{
         res.send("error al cargar la imagen../posiblemente no fue recibida");
     }
+});
+
+//----------TOKEN---------//
+
+
+//---------ACTIVIDAD-----------//
+
+const SALT = 10;
+const roles = ["1","2","3","4"];
+let usuarios = [];
+
+//1-GET /usuarios
+server.get("/usuarios",(req,res)=>{
+    res.send(usuarios);
+});
+
+//2-GET /user/:email
+server.get("/usuario/:email",(req,res)=>{
+    let mail = req.params.email;
+
+    usuarios.forEach(elemento => {
+        if(elemento.email == mail){
+            res.send(elemento);
+        }else{
+            res.send("usuario no encontrado...");
+        }
+    })
+});
+
+//3-POST CREAR USUARIO
+server.post("/user/:email/:name/:pass/:role",(req,res)=>{
+    let {email,name,pass,role} = req.params; //Directamente uso los atributos
+
+    let flag = -1;
+    roles.forEach(elemento => { //Busco que el usuario tenga un rol asignado
+        if(elemento == role){
+            flag = 1;
+        }
+    });
+    if(flag==1){
+        let usuario = {email,name,pass,role};
+
+        bcrypt.hash(usuario.pass,SALT,(err,hash)=>{ //encripto la clave y agrego
+            if(!err){                            //al usuario
+                usuario.pass = hash;
+                usuarios.push(usuario);
+            }
+        });
+        const payload = { 
+            user:usuario.nombre,
+            user:usuario.role,
+            country:"arg",
+            lang:"es"
+        };
+        jwt.sign(payload,usuario.pass,(err,token)=>{ //genero el token
+            if(!err){
+                res.send(token);
+            }
+            else{
+                res.send("error");
+            }
+        })
+    }
+    else{
+        res.send("ingrese un rol valido");
+    }
+});
+
+//4- VERIFY
+server.post("/user/:email/:pass",(req,res)=>{
+    let {email,pass} = req.params;
+    let usuario = usuarios.find(user =>{
+        if(user.email == email){
+            bcrypt.compare(pass,user.pass,(err,validate)=>{ //verifica que los hash
+                if(!err){                                   //coincidan
+                    res.send(`verify ${validate}`); 
+                }
+            });
+        }
+    });
 });
 
 server.listen(3000,()=>{
