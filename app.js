@@ -17,7 +17,7 @@ const axios = require("axios");
 const { appendFile } = require("fs");
 const log = console.log;
 
-let PORT = process.env.PORT || 3000;
+let PORT = process.env.PORT || 3500;
 
 server.use(cors());
 server.use(methodOverride());
@@ -238,6 +238,6 @@ server.post("/user/:email/:pass",(req,res)=>{
     });
 });
 
-server.listen(3000,()=>{
+server.listen(3500,()=>{
     log("start server");
 });
